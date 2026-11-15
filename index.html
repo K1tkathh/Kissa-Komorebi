@@ -1,0 +1,1236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kissa Komorebi — Cafe POS & Management System</title>
+  <!-- Load Tailwind CSS for responsive layout and utility styling -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Load Google Fonts: Inter for UI clarity & Cormorant Garamond for Japanese Kissaten aesthetic -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <script>
+    // Custom Tailwind configuration for Kissa Komorebi brand colors
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            cream: '#F9F6F0',
+            parchment: '#F1ECE1',
+            matcha: '#3A5A40',
+            matchaDark: '#2A422F',
+            sage: '#A3B18A',
+            espresso: '#3D2C2E',
+            terracotta: '#C86D51',
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            serif: ['Cormorant Garamond', 'serif'],
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-cream text-espresso font-sans min-h-screen flex flex-col selection:bg-sage selection:text-white">
+
+  <!-- =====================================================================
+       1. TOP NAVIGATION HEADER
+       Allows switching between POS Register, Barista Kitchen Queue, and Manager Dashboard
+       ===================================================================== -->
+  <header class="bg-matcha text-cream shadow-md sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+      
+      <!-- Cafe Brand Identity -->
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-cream/15 border border-cream/30 flex items-center justify-center text-xl">
+            🍃
+          </div>
+          <div>
+            <h1 class="font-serif text-2xl font-bold tracking-wide leading-none">Kissa Komorebi</h1>
+            <p class="text-xs text-sage font-medium tracking-wider uppercase mt-0.5">喫茶 木漏れ日 • POS & Operations</p>
+          </div>
+        </div>
+        <!-- Live Clock Display (Mobile) -->
+        <span id="clock-mobile" class="md:hidden text-xs font-mono bg-matchaDark px-2.5 py-1 rounded-lg text-cream/90"></span>
+      </div>
+
+      <!-- Module Switcher Tabs -->
+      <nav class="flex items-center bg-matchaDark/70 p-1 rounded-xl border border-cream/10 overflow-x-auto">
+        <button onclick="switchTab('pos')" id="tab-pos" class="nav-tab active flex-1 md:flex-none px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 whitespace-nowrap bg-cream text-matcha shadow-sm">
+          <span>🧾</span> POS Register
+        </button>
+        <button onclick="switchTab('queue')" id="tab-queue" class="nav-tab flex-1 md:flex-none px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 whitespace-nowrap text-cream/80 hover:text-white">
+          <span>🍵</span> Barista Queue
+          <span id="queue-badge" class="bg-terracotta text-white text-xs font-bold px-2 py-0.5 rounded-full">0</span>
+        </button>
+        <button onclick="switchTab('admin')" id="tab-admin" class="nav-tab flex-1 md:flex-none px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 whitespace-nowrap text-cream/80 hover:text-white">
+          <span>📊</span> Sales & Inventory
+        </button>
+      </nav>
+
+      <!-- Live Clock (Desktop) -->
+      <div class="hidden md:flex items-center gap-3">
+        <span id="clock-desktop" class="text-xs font-mono bg-matchaDark px-3 py-1.5 rounded-lg text-cream/90 border border-cream/10"></span>
+      </div>
+    </div>
+  </header>
+
+  <!-- =====================================================================
+       MAIN APPLICATION CONTAINER
+       ===================================================================== -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6">
+
+    <!-- ===================================================================
+         VIEW 1: POINT OF SALE (POS) & MENU ORDERING
+         =================================================================== -->
+    <section id="view-pos" class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      
+      <!-- LEFT COLUMN (7 cols on lg): Search, Categories & Menu Grid -->
+      <div class="lg:col-span-7 xl:col-span-8 flex flex-col gap-5">
+        
+        <!-- Search & Category Filter Bar -->
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-espresso/10 flex flex-col gap-3">
+          <div class="relative">
+            <span class="absolute inset-y-0 left-3.5 flex items-center text-espresso/40">🔍</span>
+            <input 
+              type="text" 
+              id="search-input" 
+              oninput="handleSearch(this.value)"
+              placeholder="Search matcha, melon soda, croissant, tamago sando..." 
+              class="w-full pl-10 pr-4 py-2.5 bg-cream/70 border border-espresso/15 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-matcha/40 focus:border-matcha transition"
+            />
+          </div>
+
+          <!-- Category Filter Pills -->
+          <div id="category-tabs" class="flex items-center gap-2 overflow-x-auto pb-1">
+            <!-- Dynamically populated by renderCategories() -->
+          </div>
+        </div>
+
+        <!-- Menu Items Grid -->
+        <div id="menu-grid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          <!-- Dynamically populated by renderMenu() -->
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN (5 cols on lg): Active Order Cart & Checkout Panel -->
+      <aside class="lg:col-span-5 xl:col-span-4 bg-white rounded-2xl shadow-md border border-espresso/10 flex flex-col sticky top-24">
+        
+        <!-- Ticket Header -->
+        <div class="p-4 border-b border-espresso/10 bg-parchment/60 rounded-t-2xl flex items-center justify-between">
+          <div>
+            <h2 class="font-serif text-xl font-bold text-espresso">Current Order Ticket</h2>
+            <p class="text-xs text-espresso/60">Order #<span id="next-order-number">1001</span></p>
+          </div>
+          <button onclick="clearCart()" class="text-xs font-medium text-terracotta hover:underline px-2 py-1 rounded-lg hover:bg-terracotta/10 transition">
+            Clear All
+          </button>
+        </div>
+
+        <!-- Customer Name / Table & Dining Mode -->
+        <div class="p-4 border-b border-espresso/10 grid grid-cols-2 gap-2.5 bg-cream/30">
+          <div>
+            <label class="block text-[11px] font-semibold uppercase tracking-wider text-espresso/60 mb-1">Customer / Table</label>
+            <input type="text" id="customer-name" placeholder="e.g. Table 4 / Kenji" class="w-full px-3 py-1.5 text-sm bg-white border border-espresso/15 rounded-lg focus:outline-none focus:border-matcha" />
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold uppercase tracking-wider text-espresso/60 mb-1">Order Type</label>
+            <select id="order-type" class="w-full px-3 py-1.5 text-sm bg-white border border-espresso/15 rounded-lg focus:outline-none focus:border-matcha">
+              <option value="Dine-In">🍽️ Dine-In</option>
+              <option value="Takeout">🛍️ Takeout</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Cart Line Items List -->
+        <div id="cart-items" class="p-4 max-h-72 overflow-y-auto divide-y divide-espresso/10 flex-1">
+          <!-- Dynamically populated by renderCart() -->
+        </div>
+
+        <!-- Billing & Payment Summary -->
+        <div class="p-4 bg-parchment/50 border-t border-espresso/10 rounded-b-2xl flex flex-col gap-3">
+          
+          <!-- Discount Toggle (Senior Citizen / PWD 20% Discount - Standard in PH) -->
+          <label class="flex items-center justify-between text-xs bg-white p-2.5 rounded-xl border border-espresso/10 cursor-pointer select-none">
+            <span class="font-medium text-espresso">Apply Senior / PWD Discount (20%)</span>
+            <input type="checkbox" id="discount-toggle" onchange="renderCart()" class="w-4 h-4 accent-matcha rounded cursor-pointer" />
+          </label>
+
+          <!-- Price Breakdown -->
+          <div class="space-y-1.5 text-sm">
+            <div class="flex justify-between text-espresso/70">
+              <span>Subtotal</span>
+              <span id="summary-subtotal">₱0.00</span>
+            </div>
+            <div class="flex justify-between text-espresso/70">
+              <span>Service Charge (5%)</span>
+              <span id="summary-service">₱0.00</span>
+            </div>
+            <div id="discount-row" class="hidden flex justify-between text-matcha font-medium">
+              <span>Senior/PWD Discount (-20%)</span>
+              <span id="summary-discount">-₱0.00</span>
+            </div>
+            <div class="flex justify-between text-lg font-bold text-espresso pt-2 border-t border-espresso/15">
+              <span>Total Due</span>
+              <span id="summary-total" class="text-matcha">₱0.00</span>
+            </div>
+          </div>
+
+          <!-- Cash Tendered & Change Calculator -->
+          <div class="grid grid-cols-2 gap-2 pt-1">
+            <div>
+              <label class="block text-[11px] font-semibold uppercase tracking-wider text-espresso/60 mb-1">Cash Tendered (₱)</label>
+              <input type="number" id="cash-tendered" oninput="updateChange()" placeholder="0.00" min="0" class="w-full px-3 py-2 text-sm font-semibold bg-white border border-espresso/20 rounded-xl focus:outline-none focus:border-matcha" />
+            </div>
+            <div class="bg-white px-3 py-1.5 rounded-xl border border-espresso/10 flex flex-col justify-center">
+              <span class="text-[11px] font-semibold uppercase tracking-wider text-espresso/60">Change</span>
+              <span id="change-due" class="text-base font-bold text-espresso">₱0.00</span>
+            </div>
+          </div>
+
+          <!-- Checkout CTA Button -->
+          <button onclick="checkoutOrder()" id="checkout-btn" class="w-full py-3 px-4 bg-matcha hover:bg-matchaDark text-white font-semibold rounded-xl shadow-sm transition active:scale-[0.99] flex items-center justify-center gap-2 mt-1">
+            <span>Complete Order & Print Receipt</span>
+          </button>
+        </div>
+      </aside>
+    </section>
+
+
+    <!-- ===================================================================
+         VIEW 2: BARISTA & KITCHEN ORDER QUEUE
+         Shows active orders so staff can track preparation status
+         =================================================================== -->
+    <section id="view-queue" class="hidden flex-col gap-5">
+      <div class="bg-white p-5 rounded-2xl shadow-sm border border-espresso/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 class="font-serif text-2xl font-bold text-espresso">Barista & Kitchen Fulfillment Queue</h2>
+          <p class="text-sm text-espresso/70">Manage incoming drinks, pastries, and savory kitchen tickets in real time.</p>
+        </div>
+        <div class="flex items-center gap-2 text-xs font-medium">
+          <span class="px-3 py-1.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">🟡 Pending</span>
+          <span class="px-3 py-1.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200">🔵 Preparing</span>
+          <span class="px-3 py-1.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">🟢 Ready / Served</span>
+        </div>
+      </div>
+
+      <!-- Active Tickets Grid -->
+      <div id="queue-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- Dynamically populated by renderQueue() -->
+      </div>
+    </section>
+
+
+    <!-- ===================================================================
+         VIEW 3: SALES ANALYTICS & INVENTORY MANAGER
+         Shows business KPIs, stock controls, and transaction audit log
+         =================================================================== -->
+    <section id="view-admin" class="hidden flex-col gap-6">
+      
+      <!-- Top KPI Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-espresso/10">
+          <p class="text-xs font-semibold uppercase tracking-wider text-espresso/60">Total Gross Revenue</p>
+          <p id="kpi-revenue" class="text-2xl font-bold text-matcha mt-1">₱0.00</p>
+          <p class="text-xs text-espresso/50 mt-1">From completed orders</p>
+        </div>
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-espresso/10">
+          <p class="text-xs font-semibold uppercase tracking-wider text-espresso/60">Orders Processed</p>
+          <p id="kpi-orders" class="text-2xl font-bold text-espresso mt-1">0</p>
+          <p class="text-xs text-espresso/50 mt-1">Dine-in & takeout tickets</p>
+        </div>
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-espresso/10">
+          <p class="text-xs font-semibold uppercase tracking-wider text-espresso/60">Best-Selling Item</p>
+          <p id="kpi-bestseller" class="text-lg font-bold text-espresso mt-1 truncate">—</p>
+          <p id="kpi-bestseller-count" class="text-xs text-espresso/50 mt-1">0 units sold</p>
+        </div>
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-espresso/10 flex flex-col justify-between">
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-wider text-espresso/60">System State Control</p>
+            <p class="text-xs text-espresso/70 mt-1">Data is saved automatically in your browser.</p>
+          </div>
+          <button onclick="resetDemoData()" class="mt-3 w-full py-2 px-3 bg-terracotta/10 hover:bg-terracotta text-terracotta hover:text-white text-xs font-semibold rounded-xl border border-terracotta/30 transition">
+            Reset Default Menu & Stock
+          </button>
+        </div>
+      </div>
+
+      <!-- Two-Column Management Area: Inventory Stock & Sales History -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Inventory Stock Management Table (7 cols) -->
+        <div class="lg:col-span-7 bg-white rounded-2xl shadow-sm border border-espresso/10 overflow-hidden">
+          <div class="p-4 bg-parchment/60 border-b border-espresso/10 flex items-center justify-between">
+            <div>
+              <h3 class="font-serif text-xl font-bold text-espresso">Daily Inventory & Stock Control</h3>
+              <p class="text-xs text-espresso/60">Stock automatically deducts upon checkout. Restock items below.</p>
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-sm">
+              <thead>
+                <tr class="bg-cream/70 text-espresso/70 text-xs uppercase border-b border-espresso/10">
+                  <th class="py-3 px-4">Item Name</th>
+                  <th class="py-3 px-4">Category</th>
+                  <th class="py-3 px-4 text-right">Price</th>
+                  <th class="py-3 px-4 text-center">In Stock</th>
+                  <th class="py-3 px-4 text-right">Quick Restock</th>
+                </tr>
+              </thead>
+              <tbody id="inventory-table-body" class="divide-y divide-espresso/10">
+                <!-- Dynamically populated by renderAdmin() -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Completed Transaction Log (5 cols) -->
+        <div class="lg:col-span-5 bg-white rounded-2xl shadow-sm border border-espresso/10 overflow-hidden flex flex-col">
+          <div class="p-4 bg-parchment/60 border-b border-espresso/10">
+            <h3 class="font-serif text-xl font-bold text-espresso">Recent Transactions</h3>
+            <p class="text-xs text-espresso/60">Click any receipt to view details.</p>
+          </div>
+          <div id="transaction-log" class="p-4 divide-y divide-espresso/10 max-h-[500px] overflow-y-auto flex-1">
+            <!-- Dynamically populated by renderAdmin() -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- =====================================================================
+       MODAL 1: DRINK TEMPERATURE / CUSTOMIZATION SELECTOR
+       Appears when adding Signature Drinks (Hot vs. Iced)
+       ===================================================================== -->
+  <div id="option-modal" class="fixed inset-0 bg-espresso/50 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-espresso/10">
+      <h3 id="option-modal-title" class="font-serif text-2xl font-bold text-espresso">Select Preference</h3>
+      <p id="option-modal-desc" class="text-xs text-espresso/70 mt-1 mb-4">Choose serving style for this beverage.</p>
+      
+      <div class="grid grid-cols-2 gap-3 mb-5">
+        <button onclick="confirmDrinkOption('Hot')" class="p-3 rounded-xl border-2 border-espresso/15 hover:border-matcha hover:bg-matcha/5 flex flex-col items-center gap-1 transition">
+          <span class="text-2xl">☕</span>
+          <span class="font-semibold text-sm">Hot</span>
+        </button>
+        <button onclick="confirmDrinkOption('Iced')" class="p-3 rounded-xl border-2 border-espresso/15 hover:border-matcha hover:bg-matcha/5 flex flex-col items-center gap-1 transition">
+          <span class="text-2xl">🧊</span>
+          <span class="font-semibold text-sm">Iced</span>
+        </button>
+      </div>
+
+      <button onclick="closeOptionModal()" class="w-full py-2 text-xs font-semibold text-espresso/60 hover:text-espresso">
+        Cancel
+      </button>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       MODAL 2: DIGITAL RECEIPT MODAL
+       Displays an authentic Japanese Kissaten thermal-style receipt after checkout
+       ===================================================================== -->
+  <div id="receipt-modal" class="fixed inset-0 bg-espresso/50 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-espresso/10 flex flex-col max-h-[90vh]">
+      <div id="receipt-content" class="bg-cream p-5 rounded-xl border border-dashed border-espresso/30 font-mono text-xs text-espresso overflow-y-auto">
+        <!-- Dynamically populated by showReceiptModal() -->
+      </div>
+      <div class="flex gap-3 mt-4">
+        <button onclick="window.print()" class="flex-1 py-2.5 px-4 bg-parchment hover:bg-sage/30 text-espresso font-semibold rounded-xl text-sm transition">
+          🖨️ Print Receipt
+        </button>
+        <button onclick="closeReceiptModal()" class="flex-1 py-2.5 px-4 bg-matcha hover:bg-matchaDark text-white font-semibold rounded-xl text-sm transition">
+          Done
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       TOAST NOTIFICATION BANNER (Replaces browser alert() for clean UX)
+       ===================================================================== -->
+  <div id="toast-banner" class="fixed bottom-5 right-5 bg-espresso text-cream px-4 py-3 rounded-xl shadow-lg text-sm font-medium transform translate-y-20 opacity-0 transition-all duration-300 z-50 flex items-center gap-2.5">
+    <span id="toast-icon">🍃</span>
+    <span id="toast-message">Notification</span>
+  </div>
+
+
+  <!-- =====================================================================
+       JAVASCRIPT APPLICATION ARCHITECTURE
+       Organized into 4 clear sections for easy explanation & maintenance:
+       SECTION A: INITIAL DATA & STATE MANAGEMENT (localStorage persistence)
+       SECTION B: RENDER FUNCTIONS (Updating the HTML DOM from State)
+       SECTION C: BUSINESS LOGIC & POS CALCULATIONS
+       SECTION D: INITIALIZATION & UTILITIES
+       ===================================================================== -->
+  <script>
+    /* =====================================================================
+       SECTION A: INITIAL DATA & STATE MANAGEMENT
+       ===================================================================== */
+    
+    // Complete Kissa Komorebi Menu Catalog with realistic PHP (₱) pricing & initial daily stock
+    const DEFAULT_MENU = [
+      // 1. Signature Drinks
+      {
+        id: 'drink-1',
+        name: 'Ceremonial Matcha Latte',
+        category: 'Signature Drinks',
+        price: 180,
+        stock: 25,
+        hasTempOption: true,
+        emoji: '🍵',
+        description: 'Whisked Uji matcha poured over velvety steamed milk (Hot or Iced).'
+      },
+      {
+        id: 'drink-2',
+        name: 'Cream Melon Soda',
+        category: 'Signature Drinks',
+        price: 190,
+        stock: 20,
+        hasTempOption: false,
+        emoji: '🍈',
+        description: 'Classic fizzy Japanese melon syrup over ice, topped with vanilla bean ice cream and a maraschino cherry.'
+      },
+      {
+        id: 'drink-3',
+        name: 'Strawberry Matcha Cloud',
+        category: 'Signature Drinks',
+        price: 210,
+        stock: 18,
+        hasTempOption: false,
+        emoji: '🍓',
+        description: 'Layers of house-made strawberry compote, cold milk, and ceremonial matcha foam.'
+      },
+      {
+        id: 'drink-4',
+        name: 'Hojicha Caramel Latte',
+        category: 'Signature Drinks',
+        price: 185,
+        stock: 22,
+        hasTempOption: true,
+        emoji: '🍂',
+        description: 'Roasted green tea latte sweetened with lightly salted caramel.'
+      },
+      {
+        id: 'drink-5',
+        name: 'Yuzu Honey Fizz',
+        category: 'Signature Drinks',
+        price: 170,
+        stock: 20,
+        hasTempOption: false,
+        emoji: '🍋',
+        description: 'Sparkling water infused with citrusy yuzu marmalade and wildflower honey.'
+      },
+      {
+        id: 'drink-6',
+        name: 'Classic Cold Brew',
+        category: 'Signature Drinks',
+        price: 150,
+        stock: 30,
+        hasTempOption: false,
+        emoji: '🧊',
+        description: 'Steeped for 18 hours for a smooth, chocolatey finish.'
+      },
+
+      // 2. Freshly Baked Pastries
+      {
+        id: 'pastry-1',
+        name: 'Classic French Butter Croissant',
+        category: 'Freshly Baked Pastries',
+        price: 130,
+        stock: 16,
+        hasTempOption: false,
+        emoji: '🥐',
+        description: 'Flaky, golden-brown layers made with cultured butter.'
+      },
+      {
+        id: 'pastry-2',
+        name: 'Matcha White Chocolate Croissant',
+        category: 'Freshly Baked Pastries',
+        price: 165,
+        stock: 12,
+        hasTempOption: false,
+        emoji: '🌿',
+        description: 'Filled with rich matcha pastry cream and drizzled with white chocolate.'
+      },
+      {
+        id: 'pastry-3',
+        name: 'Pain au Chocolat',
+        category: 'Freshly Baked Pastries',
+        price: 145,
+        stock: 15,
+        hasTempOption: false,
+        emoji: '🍫',
+        description: 'Crisp puff pastry wrapped around two batons of dark Belgian chocolate.'
+      },
+      {
+        id: 'pastry-4',
+        name: 'Almond Frangipane Bostock',
+        category: 'Freshly Baked Pastries',
+        price: 155,
+        stock: 10,
+        hasTempOption: false,
+        emoji: '🍯',
+        description: 'Brioche toast soaked in orange blossom syrup, baked with sweet almond cream and sliced almonds.'
+      },
+
+      // 3. Cakes & Sweets
+      {
+        id: 'cake-1',
+        name: 'Japanese Strawberry Shortcake',
+        category: 'Cakes & Sweets',
+        price: 220,
+        stock: 10,
+        hasTempOption: false,
+        emoji: '🍰',
+        description: 'Light, airy vanilla sponge layered with fresh whipped cream and sweet strawberries.'
+      },
+      {
+        id: 'cake-2',
+        name: 'Burnt Basque Cheesecake',
+        category: 'Cakes & Sweets',
+        price: 210,
+        stock: 12,
+        hasTempOption: false,
+        emoji: '🍮',
+        description: 'Creamy, caramelized crustless cheesecake with a rich, custard-like center.'
+      },
+      {
+        id: 'cake-3',
+        name: 'Matcha Tiramisu',
+        category: 'Cakes & Sweets',
+        price: 230,
+        stock: 10,
+        hasTempOption: false,
+        emoji: '🍵',
+        description: 'Ladyfingers dipped in strong matcha, layered with sweet mascarpone cream and dusted with green tea powder.'
+      },
+      {
+        id: 'cake-4',
+        name: 'Earl Grey Chiffon Slice',
+        category: 'Cakes & Sweets',
+        price: 180,
+        stock: 14,
+        hasTempOption: false,
+        emoji: '🫖',
+        description: 'Fragrant tea-infused sponge cake served with a dollop of lightly sweetened cream.'
+      },
+
+      // 4. Light Bites (Savory)
+      {
+        id: 'savory-1',
+        name: 'Tamago Sando',
+        category: 'Light Bites (Savory)',
+        price: 195,
+        stock: 14,
+        hasTempOption: false,
+        emoji: '🥪',
+        description: 'Fluffy Japanese milk bread filled with rich, creamy egg salad.'
+      },
+      {
+        id: 'savory-2',
+        name: 'Ham & Gruyère Croissant',
+        category: 'Light Bites (Savory)',
+        price: 205,
+        stock: 12,
+        hasTempOption: false,
+        emoji: '🧀',
+        description: 'Warm butter croissant layered with smoked ham, melted Gruyère cheese, and a touch of Dijon mustard.'
+      }
+    ];
+
+    // Centralized Application State
+    let state = {
+      menu: [],
+      cart: [],
+      orders: [],
+      orderCounter: 1001,
+      activeCategory: 'All',
+      searchQuery: '',
+      pendingDrinkId: null // Temporarily stores drink ID while user selects Hot or Iced
+    };
+
+    // Load saved state from localStorage so data persists across page reloads
+    function loadState() {
+      try {
+        const saved = localStorage.getItem('kissa_komorebi_pos_v1');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          state.menu = parsed.menu || JSON.parse(JSON.stringify(DEFAULT_MENU));
+          state.orders = parsed.orders || [];
+          state.orderCounter = parsed.orderCounter || 1001;
+        } else {
+          state.menu = JSON.parse(JSON.stringify(DEFAULT_MENU));
+        }
+      } catch (err) {
+        console.error('Error loading state:', err);
+        state.menu = JSON.parse(JSON.stringify(DEFAULT_MENU));
+      }
+    }
+
+    // Save current menu stock and order history to localStorage
+    function saveState() {
+      try {
+        localStorage.setItem('kissa_komorebi_pos_v1', JSON.stringify({
+          menu: state.menu,
+          orders: state.orders,
+          orderCounter: state.orderCounter
+        }));
+      } catch (err) {
+        console.error('Error saving state:', err);
+      }
+    }
+
+
+    /* =====================================================================
+       SECTION B: RENDER FUNCTIONS (DOM Manipulation)
+       ===================================================================== */
+
+    // Render Category Filter Tabs dynamically
+    function renderCategories() {
+      const categories = ['All', 'Signature Drinks', 'Freshly Baked Pastries', 'Cakes & Sweets', 'Light Bites (Savory)'];
+      const container = document.getElementById('category-tabs');
+      
+      container.innerHTML = categories.map(cat => {
+        const isActive = state.activeCategory === cat;
+        const activeClasses = isActive 
+          ? 'bg-matcha text-white shadow-xs' 
+          : 'bg-cream text-espresso/80 hover:bg-parchment';
+        return `
+          <button 
+            onclick="setCategory('${cat}')" 
+            class="px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition ${activeClasses}">
+            ${cat}
+          </button>
+        `;
+      }).join('');
+    }
+
+    // Render Filtered Menu Items Grid
+    function renderMenu() {
+      const grid = document.getElementById('menu-grid');
+      const query = state.searchQuery.toLowerCase().trim();
+
+      // Filter items by selected category and search input
+      const filteredItems = state.menu.filter(item => {
+        const matchesCat = state.activeCategory === 'All' || item.category === state.activeCategory;
+        const matchesSearch = item.name.toLowerCase().includes(query) || 
+                              item.description.toLowerCase().includes(query) ||
+                              item.category.toLowerCase().includes(query);
+        return matchesCat && matchesSearch;
+      });
+
+      if (filteredItems.length === 0) {
+        grid.innerHTML = `
+          <div class="col-span-full bg-white p-10 rounded-2xl border border-espresso/10 text-center">
+            <p class="text-3xl mb-2">🍵</p>
+            <p class="font-serif text-xl font-bold text-espresso">No menu items found</p>
+            <p class="text-xs text-espresso/60 mt-1">Try adjusting your search or category filter.</p>
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = filteredItems.map(item => {
+        // Calculate how many of this item are already in the active cart
+        const inCartQty = state.cart
+          .filter(c => c.itemId === item.id)
+          .reduce((sum, c) => sum + c.qty, 0);
+        const availableStock = item.stock - inCartQty;
+        const isOutOfStock = availableStock <= 0;
+
+        return `
+          <div class="bg-white rounded-2xl p-4 shadow-xs border border-espresso/10 flex flex-col justify-between transition hover:shadow-md ${isOutOfStock ? 'opacity-60' : ''}">
+            <div>
+              <!-- Top Badge Row -->
+              <div class="flex items-start justify-between gap-2 mb-2">
+                <span class="w-10 h-10 rounded-xl bg-cream flex items-center justify-center text-xl border border-espresso/10">
+                  ${item.emoji}
+                </span>
+                <span class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${availableStock <= 3 ? 'bg-terracotta/15 text-terracotta' : 'bg-sage/25 text-matchaDark'}">
+                  ${isOutOfStock ? 'Sold Out' : `${availableStock} left`}
+                </span>
+              </div>
+
+              <!-- Title & Description -->
+              <h3 class="font-serif text-lg font-bold text-espresso leading-snug">${item.name}</h3>
+              <p class="text-xs text-espresso/65 mt-1 line-clamp-2 leading-relaxed">${item.description}</p>
+            </div>
+
+            <!-- Price & Add Button -->
+            <div class="mt-4 pt-3 border-t border-espresso/10 flex items-center justify-between">
+              <span class="font-bold text-base text-matcha">₱${item.price.toFixed(2)}</span>
+              <button 
+                onclick="initiateAddToCart('${item.id}')"
+                ${isOutOfStock ? 'disabled' : ''}
+                class="px-3.5 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1 ${
+                  isOutOfStock 
+                    ? 'bg-espresso/10 text-espresso/40 cursor-not-allowed' 
+                    : 'bg-matcha hover:bg-matchaDark text-white shadow-xs active:scale-95'
+                }">
+                <span>+</span> Add
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Render Active Order Cart & Financial Calculations
+    function renderCart() {
+      const container = document.getElementById('cart-items');
+      document.getElementById('next-order-number').textContent = state.orderCounter;
+
+      if (state.cart.length === 0) {
+        container.innerHTML = `
+          <div class="py-10 text-center text-espresso/50">
+            <p class="text-2xl mb-1">🧺</p>
+            <p class="text-sm font-medium">Your order ticket is empty</p>
+            <p class="text-xs mt-0.5">Select items from the menu to begin.</p>
+          </div>
+        `;
+      } else {
+        container.innerHTML = state.cart.map((line, index) => `
+          <div class="py-3 flex items-center justify-between gap-2">
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-semibold text-espresso truncate">${line.name}</p>
+              <div class="flex items-center gap-2 text-xs text-espresso/60 mt-0.5">
+                <span>₱${line.price.toFixed(2)}</span>
+                ${line.option ? `<span class="px-1.5 py-0.2 bg-parchment rounded text-[10px] font-semibold text-espresso">${line.option}</span>` : ''}
+              </div>
+            </div>
+
+            <!-- Quantity Controls -->
+            <div class="flex items-center gap-1.5 bg-cream px-2 py-1 rounded-xl border border-espresso/10">
+              <button onclick="updateCartQty(${index}, -1)" class="w-6 h-6 rounded-lg bg-white hover:bg-parchment text-espresso font-bold text-xs shadow-2xs transition">−</button>
+              <span class="w-5 text-center text-xs font-bold">${line.qty}</span>
+              <button onclick="updateCartQty(${index}, 1)" class="w-6 h-6 rounded-lg bg-white hover:bg-parchment text-espresso font-bold text-xs shadow-2xs transition">+</button>
+            </div>
+
+            <div class="text-right min-w-[64px]">
+              <p class="text-sm font-bold text-espresso">₱${(line.price * line.qty).toFixed(2)}</p>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      // Compute Totals
+      const totals = calculateTotals();
+      document.getElementById('summary-subtotal').textContent = `₱${totals.subtotal.toFixed(2)}`;
+      document.getElementById('summary-service').textContent = `₱${totals.serviceCharge.toFixed(2)}`;
+      
+      const discountRow = document.getElementById('discount-row');
+      if (totals.discount > 0) {
+        discountRow.classList.remove('hidden');
+        document.getElementById('summary-discount').textContent = `-₱${totals.discount.toFixed(2)}`;
+      } else {
+        discountRow.classList.add('hidden');
+      }
+
+      document.getElementById('summary-total').textContent = `₱${totals.total.toFixed(2)}`;
+      updateChange();
+    }
+
+    // Render Barista & Kitchen Fulfillment Queue
+    function renderQueue() {
+      const grid = document.getElementById('queue-grid');
+      // Filter orders that are not yet marked as 'Completed'
+      const activeOrders = state.orders.filter(o => o.status !== 'Completed');
+      
+      // Update header badge counter
+      document.getElementById('queue-badge').textContent = activeOrders.length;
+
+      if (activeOrders.length === 0) {
+        grid.innerHTML = `
+          <div class="col-span-full bg-white p-12 rounded-2xl border border-espresso/10 text-center">
+            <p class="text-3xl mb-2">✨</p>
+            <h3 class="font-serif text-xl font-bold text-espresso">All Caught Up!</h3>
+            <p class="text-xs text-espresso/60 mt-1">There are no pending drinks or food items in the barista queue.</p>
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = activeOrders.map(order => {
+        const isPreparing = order.status === 'Preparing';
+        const statusBadge = isPreparing 
+          ? 'bg-blue-100 text-blue-800 border-blue-200' 
+          : 'bg-amber-100 text-amber-800 border-amber-200';
+
+        return `
+          <div class="bg-white rounded-2xl p-5 shadow-sm border border-espresso/10 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between pb-3 border-b border-espresso/10">
+                <div>
+                  <span class="font-mono text-xs font-bold text-matcha">ORDER #${order.orderNumber}</span>
+                  <h3 class="font-bold text-base text-espresso">${order.customerName}</h3>
+                </div>
+                <span class="px-2.5 py-1 rounded-full text-xs font-semibold border ${statusBadge}">
+                  ${order.status}
+                </span>
+              </div>
+
+              <div class="flex items-center justify-between text-xs text-espresso/60 mt-2 mb-3">
+                <span>${order.orderType}</span>
+                <span>${order.timestamp}</span>
+              </div>
+
+              <ul class="space-y-2 my-3 bg-cream/60 p-3 rounded-xl border border-espresso/5">
+                ${order.items.map(item => `
+                  <li class="flex justify-between text-sm">
+                    <span class="font-medium text-espresso">
+                      <strong class="text-matcha">${item.qty}×</strong> ${item.name}
+                      ${item.option ? `<span class="text-xs text-espresso/60">(${item.option})</span>` : ''}
+                    </span>
+                  </li>
+                `).join('')}
+              </ul>
+            </div>
+
+            <div class="pt-3 border-t border-espresso/10 flex gap-2">
+              ${!isPreparing ? `
+                <button onclick="advanceOrderStatus(${order.orderNumber}, 'Preparing')" class="flex-1 py-2 px-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl transition">
+                  Start Preparing
+                </button>
+              ` : ''}
+              <button onclick="advanceOrderStatus(${order.orderNumber}, 'Completed')" class="flex-1 py-2 px-3 bg-matcha hover:bg-matchaDark text-white text-xs font-semibold rounded-xl transition">
+                Mark Served ✓
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Render Manager Sales Analytics & Inventory Stock Table
+    function renderAdmin() {
+      // 1. Calculate KPIs
+      const totalRevenue = state.orders.reduce((sum, o) => sum + o.total, 0);
+      const totalOrders = state.orders.length;
+
+      // Tally item sales to find Best-Selling Item
+      const itemSales = {};
+      state.orders.forEach(order => {
+        order.items.forEach(item => {
+          itemSales[item.name] = (itemSales[item.name] || 0) + item.qty;
+        });
+      });
+
+      let bestSellerName = 'No sales yet';
+      let bestSellerQty = 0;
+      for (const [name, qty] of Object.entries(itemSales)) {
+        if (qty > bestSellerQty) {
+          bestSellerQty = qty;
+          bestSellerName = name;
+        }
+      }
+
+      document.getElementById('kpi-revenue').textContent = `₱${totalRevenue.toFixed(2)}`;
+      document.getElementById('kpi-orders').textContent = totalOrders;
+      document.getElementById('kpi-bestseller').textContent = bestSellerName;
+      document.getElementById('kpi-bestseller-count').textContent = `${bestSellerQty} units sold`;
+
+      // 2. Render Inventory Table
+      const invBody = document.getElementById('inventory-table-body');
+      invBody.innerHTML = state.menu.map(item => `
+        <tr class="hover:bg-cream/40 transition">
+          <td class="py-3 px-4 font-medium text-espresso">${item.emoji} ${item.name}</td>
+          <td class="py-3 px-4 text-xs text-espresso/70">${item.category}</td>
+          <td class="py-3 px-4 text-right font-semibold">₱${item.price.toFixed(2)}</td>
+          <td class="py-3 px-4 text-center">
+            <span class="px-2.5 py-0.5 rounded-full text-xs font-bold ${item.stock <= 5 ? 'bg-terracotta/15 text-terracotta' : 'bg-sage/25 text-matchaDark'}">
+              ${item.stock}
+            </span>
+          </td>
+          <td class="py-3 px-4 text-right">
+            <button onclick="restockItem('${item.id}', 10)" class="px-2.5 py-1 bg-matcha/10 hover:bg-matcha text-matcha hover:text-white text-xs font-semibold rounded-lg transition">
+              +10 Stock
+            </button>
+          </td>
+        </tr>
+      `).join('');
+
+      // 3. Render Transaction History Log
+      const logContainer = document.getElementById('transaction-log');
+      if (state.orders.length === 0) {
+        logContainer.innerHTML = `<p class="text-xs text-espresso/50 text-center py-8">No transactions recorded yet.</p>`;
+      } else {
+        // Show newest orders first
+        const reversedOrders = [...state.orders].reverse();
+        logContainer.innerHTML = reversedOrders.map(order => `
+          <div onclick="showReceiptModal(${order.orderNumber})" class="py-3 flex items-center justify-between hover:bg-cream/60 px-2 rounded-xl cursor-pointer transition">
+            <div>
+              <p class="text-sm font-bold text-espresso">Order #${order.orderNumber} • ${order.customerName}</p>
+              <p class="text-xs text-espresso/60">${order.timestamp} • ${order.items.length} item(s)</p>
+            </div>
+            <div class="text-right">
+              <p class="text-sm font-bold text-matcha">₱${order.total.toFixed(2)}</p>
+              <span class="text-[10px] font-semibold uppercase tracking-wider text-espresso/50">${order.status}</span>
+            </div>
+          </div>
+        `).join('');
+      }
+    }
+
+
+    /* =====================================================================
+       SECTION C: BUSINESS LOGIC & EVENT HANDLERS
+       ===================================================================== */
+
+    function setCategory(category) {
+      state.activeCategory = category;
+      renderCategories();
+      renderMenu();
+    }
+
+    function handleSearch(value) {
+      state.searchQuery = value;
+      renderMenu();
+    }
+
+    // Step 1 of adding to cart: check if drink requires Hot/Iced choice
+    function initiateAddToCart(itemId) {
+      const item = state.menu.find(m => m.id === itemId);
+      if (!item) return;
+
+      // Verify remaining stock
+      const inCartQty = state.cart
+        .filter(c => c.itemId === item.id)
+        .reduce((sum, c) => sum + c.qty, 0);
+
+      if (item.stock - inCartQty <= 0) {
+        showToast('Item is out of stock!', '⚠️');
+        return;
+      }
+
+      if (item.hasTempOption) {
+        state.pendingDrinkId = item.id;
+        document.getElementById('option-modal-title').textContent = item.name;
+        document.getElementById('option-modal').classList.remove('hidden');
+        document.getElementById('option-modal').classList.add('flex');
+      } else {
+        addToCart(item.id, null);
+      }
+    }
+
+    function confirmDrinkOption(tempChoice) {
+      if (state.pendingDrinkId) {
+        addToCart(state.pendingDrinkId, tempChoice);
+        closeOptionModal();
+      }
+    }
+
+    function closeOptionModal() {
+      state.pendingDrinkId = null;
+      document.getElementById('option-modal').classList.add('hidden');
+      document.getElementById('option-modal').classList.remove('flex');
+    }
+
+    // Step 2: Push item to cart or increment existing line item
+    function addToCart(itemId, option) {
+      const item = state.menu.find(m => m.id === itemId);
+      if (!item) return;
+
+      const existingIndex = state.cart.findIndex(c => c.itemId === itemId && c.option === option);
+      if (existingIndex > -1) {
+        state.cart[existingIndex].qty += 1;
+      } else {
+        state.cart.push({
+          itemId: item.id,
+          name: item.name,
+          price: item.price,
+          option: option,
+          qty: 1
+        });
+      }
+
+      renderMenu();
+      renderCart();
+      showToast(`Added ${item.name}${option ? ` (${option})` : ''}`, '🍵');
+    }
+
+    // Increment or decrement item quantity inside the cart
+    function updateCartQty(cartIndex, delta) {
+      const line = state.cart[cartIndex];
+      if (!line) return;
+
+      if (delta > 0) {
+        const menuItem = state.menu.find(m => m.id === line.itemId);
+        const totalInCart = state.cart
+          .filter(c => c.itemId === line.itemId)
+          .reduce((sum, c) => sum + c.qty, 0);
+
+        if (totalInCart >= menuItem.stock) {
+          showToast('Maximum available stock reached.', '⚠️');
+          return;
+        }
+        line.qty += 1;
+      } else {
+        line.qty -= 1;
+        if (line.qty <= 0) {
+          state.cart.splice(cartIndex, 1);
+        }
+      }
+
+      renderMenu();
+      renderCart();
+    }
+
+    function clearCart() {
+      state.cart = [];
+      document.getElementById('cash-tendered').value = '';
+      document.getElementById('discount-toggle').checked = false;
+      renderMenu();
+      renderCart();
+    }
+
+    // Core Financial Calculation Engine
+    function calculateTotals() {
+      const subtotal = state.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+      const serviceCharge = subtotal * 0.05; // 5% Cafe Service Charge
+      const hasDiscount = document.getElementById('discount-toggle').checked;
+      const discount = hasDiscount ? subtotal * 0.20 : 0; // 20% Senior/PWD Discount
+      const total = Math.max(0, subtotal + serviceCharge - discount);
+
+      return { subtotal, serviceCharge, discount, total };
+    }
+
+    function updateChange() {
+      const totals = calculateTotals();
+      const cashInput = parseFloat(document.getElementById('cash-tendered').value) || 0;
+      const change = cashInput - totals.total;
+      const changeEl = document.getElementById('change-due');
+
+      if (cashInput > 0 && change >= 0) {
+        changeEl.textContent = `₱${change.toFixed(2)}`;
+        changeEl.classList.remove('text-terracotta');
+        changeEl.classList.add('text-matcha');
+      } else if (cashInput > 0 && change < 0) {
+        changeEl.textContent = `Short ₱${Math.abs(change).toFixed(2)}`;
+        changeEl.classList.remove('text-matcha');
+        changeEl.classList.add('text-terracotta');
+      } else {
+        changeEl.textContent = '₱0.00';
+        changeEl.classList.remove('text-terracotta', 'text-matcha');
+      }
+    }
+
+    // Finalize Order: Validate payment, deduct stock, create order record, show receipt
+    function checkoutOrder() {
+      if (state.cart.length === 0) {
+        showToast('Please add items to the order first.', '⚠️');
+        return;
+      }
+
+      const totals = calculateTotals();
+      const cashTendered = parseFloat(document.getElementById('cash-tendered').value) || 0;
+
+      // Require sufficient cash payment (or allow exact cash if left blank? Let's enforce valid payment for realistic POS logic)
+      if (cashTendered < totals.total) {
+        showToast(`Insufficient cash tendered. Total due is ₱${totals.total.toFixed(2)}`, '⚠️');
+        document.getElementById('cash-tendered').focus();
+        return;
+      }
+
+      // 1. Deduct purchased quantities from inventory stock
+      state.cart.forEach(line => {
+        const menuItem = state.menu.find(m => m.id === line.itemId);
+        if (menuItem) {
+          menuItem.stock = Math.max(0, menuItem.stock - line.qty);
+        }
+      });
+
+      // 2. Build Order Ticket Object
+      const customerNameInput = document.getElementById('customer-name').value.trim();
+      const newOrder = {
+        orderNumber: state.orderCounter++,
+        customerName: customerNameInput || 'Walk-in Guest',
+        orderType: document.getElementById('order-type').value,
+        items: JSON.parse(JSON.stringify(state.cart)),
+        subtotal: totals.subtotal,
+        serviceCharge: totals.serviceCharge,
+        discount: totals.discount,
+        total: totals.total,
+        cashTendered: cashTendered,
+        change: cashTendered - totals.total,
+        status: 'Pending',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+
+      state.orders.push(newOrder);
+      saveState();
+
+      // 3. Reset POS ticket fields & refresh views
+      state.cart = [];
+      document.getElementById('customer-name').value = '';
+      document.getElementById('cash-tendered').value = '';
+      document.getElementById('discount-toggle').checked = false;
+
+      renderMenu();
+      renderCart();
+      renderQueue();
+      renderAdmin();
+
+      // 4. Display Digital Receipt
+      showReceiptModal(newOrder.orderNumber);
+      showToast(`Order #${newOrder.orderNumber} sent to Barista Queue!`, '✅');
+    }
+
+    // Advance order status in Barista Queue
+    function advanceOrderStatus(orderNumber, nextStatus) {
+      const order = state.orders.find(o => o.orderNumber === orderNumber);
+      if (order) {
+        order.status = nextStatus;
+        saveState();
+        renderQueue();
+        renderAdmin();
+        showToast(`Order #${orderNumber} marked as ${nextStatus}`, '🍵');
+      }
+    }
+
+    // Restock menu item in Manager Dashboard
+    function restockItem(itemId, amount) {
+      const item = state.menu.find(m => m.id === itemId);
+      if (item) {
+        item.stock += amount;
+        saveState();
+        renderAdmin();
+        renderMenu();
+        showToast(`Restocked +${amount} ${item.name}`, '📦');
+      }
+    }
+
+    function resetDemoData() {
+      localStorage.removeItem('kissa_komorebi_pos_v1');
+      state.menu = JSON.parse(JSON.stringify(DEFAULT_MENU));
+      state.cart = [];
+      state.orders = [];
+      state.orderCounter = 1001;
+      saveState();
+      renderMenu();
+      renderCart();
+      renderQueue();
+      renderAdmin();
+      showToast('System reset to default cafe menu & stock.', '🔄');
+    }
+
+
+    /* =====================================================================
+       SECTION D: UI NAVIGATION, RECEIPT GENERATOR & UTILITIES
+       ===================================================================== */
+
+    function switchTab(tabName) {
+      // Hide all views
+      ['pos', 'queue', 'admin'].forEach(view => {
+        document.getElementById(`view-${view}`).classList.add('hidden');
+        document.getElementById(`view-${view}`).classList.remove('grid', 'flex');
+        
+        const btn = document.getElementById(`tab-${view}`);
+        btn.classList.remove('bg-cream', 'text-matcha', 'shadow-sm');
+        btn.classList.add('text-cream/80');
+      });
+
+      // Show selected view
+      const activeView = document.getElementById(`view-${tabName}`);
+      activeView.classList.remove('hidden');
+      activeView.classList.add(tabName === 'pos' ? 'grid' : 'flex');
+
+      const activeBtn = document.getElementById(`tab-${tabName}`);
+      activeBtn.classList.add('bg-cream', 'text-matcha', 'shadow-sm');
+      activeBtn.classList.remove('text-cream/80');
+
+      if (tabName === 'queue') renderQueue();
+      if (tabName === 'admin') renderAdmin();
+    }
+
+    function showReceiptModal(orderNumber) {
+      const order = state.orders.find(o => o.orderNumber === orderNumber);
+      if (!order) return;
+
+      const receiptEl = document.getElementById('receipt-content');
+      receiptEl.innerHTML = `
+        <div class="text-center border-b border-dashed border-espresso/30 pb-3 mb-3">
+          <p class="font-serif text-xl font-bold tracking-wide">KISSA KOMOREBI</p>
+          <p class="text-[11px]">喫茶 木漏れ日 • Specialty Japanese Cafe</p>
+          <p class="text-[10px] text-espresso/70 mt-1">Official Digital Receipt</p>
+        </div>
+
+        <div class="space-y-1 text-[11px] border-b border-dashed border-espresso/30 pb-3 mb-3">
+          <div class="flex justify-between"><span>Order No:</span><strong>#${order.orderNumber}</strong></div>
+          <div class="flex justify-between"><span>Customer:</span><span>${order.customerName} (${order.orderType})</span></div>
+          <div class="flex justify-between"><span>Time:</span><span>${order.timestamp}</span></div>
+        </div>
+
+        <div class="space-y-1.5 border-b border-dashed border-espresso/30 pb-3 mb-3">
+          ${order.items.map(item => `
+            <div class="flex justify-between">
+              <span>${item.qty}x ${item.name} ${item.option ? `[${item.option}]` : ''}</span>
+              <span>₱${(item.price * item.qty).toFixed(2)}</span>
+            </div>
+          `).join('')}
+        </div>
+
+        <div class="space-y-1 text-[11px]">
+          <div class="flex justify-between"><span>Subtotal:</span><span>₱${order.subtotal.toFixed(2)}</span></div>
+          <div class="flex justify-between"><span>Service Charge (5%):</span><span>₱${order.serviceCharge.toFixed(2)}</span></div>
+          ${order.discount > 0 ? `<div class="flex justify-between"><span>Senior/PWD Disc (20%):</span><span>-₱${order.discount.toFixed(2)}</span></div>` : ''}
+          <div class="flex justify-between font-bold text-sm pt-2 border-t border-espresso/20">
+            <span>TOTAL PAID:</span><span>₱${order.total.toFixed(2)}</span>
+          </div>
+          <div class="flex justify-between pt-1"><span>Cash Tendered:</span><span>₱${order.cashTendered.toFixed(2)}</span></div>
+          <div class="flex justify-between"><span>Change:</span><span>₱${order.change.toFixed(2)}</span></div>
+        </div>
+
+        <div class="text-center mt-4 pt-3 border-t border-dashed border-espresso/30 text-[10px] text-espresso/70">
+          <p>Arigatou gozaimasu! Thank you for visiting.</p>
+        </div>
+      `;
+
+      document.getElementById('receipt-modal').classList.remove('hidden');
+      document.getElementById('receipt-modal').classList.add('flex');
+    }
+
+    function closeReceiptModal() {
+      document.getElementById('receipt-modal').classList.add('hidden');
+      document.getElementById('receipt-modal').classList.remove('flex');
+    }
+
+    // Custom Toast Notification Helper
+    let toastTimeout;
+    function showToast(message, icon = '🍃') {
+      const banner = document.getElementById('toast-banner');
+      document.getElementById('toast-message').textContent = message;
+      document.getElementById('toast-icon').textContent = icon;
+
+      banner.classList.remove('translate-y-20', 'opacity-0');
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        banner.classList.add('translate-y-20', 'opacity-0');
+      }, 2800);
+    }
+
+    // Live Clock Updater
+    function updateClock() {
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      document.getElementById('clock-desktop').textContent = timeStr;
+      document.getElementById('clock-mobile').textContent = timeStr;
+    }
+
+    // Initialize Application on Window Load
+    window.onload = function() {
+      loadState();
+      renderCategories();
+      renderMenu();
+      renderCart();
+      renderQueue();
+      renderAdmin();
+      updateClock();
+      setInterval(updateClock, 1000);
+    };
+  </script>
+</body>
+</html>
